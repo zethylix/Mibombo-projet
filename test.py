@@ -1,5 +1,5 @@
 import bcrypt
-import getpass
+import pwinput
 import json
 import os
 
@@ -34,7 +34,7 @@ def register_user(role="user"):
         else:
             break
 
-    password = getpass.getpass("Créer un mot de passe : ")
+    password = pwinput.pwinput("Créer un mot de passe : ", mask="*")
     password_bytes = password.encode("utf-8")
 
     salt = bcrypt.gensalt(rounds=12)
@@ -60,7 +60,7 @@ def login():
         print("❌ Cet utilisateur n'existe pas.")
         return None
 
-    password = getpass.getpass("Entrer votre mot de passe : ")
+    password = pwinput.pwinput("Entrer votre mot de passe : ", mask="*")
 
     # On doit encoder le mot de passe entré et le hash stocké pour la comparaison
     password_bytes = password.encode("utf-8")
