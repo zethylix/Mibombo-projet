@@ -28,9 +28,9 @@ def register_user(role="user"):
     while True:
         username = input("Entrer un nom d'utilisateur : ")
         if username in users:
-            print("❌ Ce nom d'utilisateur est déjà pris. Veuillez en choisir un autre.")
+            print("Ce nom d'utilisateur est déjà pris. Veuillez en choisir un autre")
         elif not username:
-            print("❌ Le nom d'utilisateur ne peut pas être vide.")
+            print("Le nom d'utilisateur ne peut pas être vide")
         else:
             break
 
@@ -47,7 +47,7 @@ def register_user(role="user"):
     }
     
     save_users(users)
-    print(f"✅ Utilisateur '{username}' créé avec succès avec le rôle '{role}'.")
+    print(f" Utilisateur '{username}' créé avec succès avec le rôle '{role}'.")
 
 def login():
     """Gère la connexion d'un utilisateur."""
@@ -57,7 +57,7 @@ def login():
 
     user_data = users.get(username)
     if not user_data:
-        print("❌ Cet utilisateur n'existe pas.")
+        print("Cet utilisateur n'existe pas.")
         return None
 
     password = pwinput.pwinput("Entrer votre mot de passe : ", mask="*")
@@ -67,10 +67,10 @@ def login():
     hashed_password_bytes = user_data["hashed_password"].encode("utf-8")
     
     if bcrypt.checkpw(password_bytes, hashed_password_bytes):
-        print(f"✅ Connexion réussie. Bienvenue {username} !")
+        print(f"Connexion réussie. Bienvenue {username} !")
         return {"username": username, "role": user_data["role"]}
     else:
-        print("❌ Mot de passe incorrect.")
+        print("Mot de passe incorrect.")
         return None
 
 def add_user_as_admin():
@@ -81,7 +81,7 @@ def add_user_as_admin():
         if role in ["user", "admin"]:
             break
         else:
-            print("❌ Rôle invalide. Veuillez choisir 'user' ou 'admin'.")
+            print("Rôle invalide. Veuillez choisir 'user' ou 'admin'.")
     
     register_user(role=role)
 
@@ -92,7 +92,7 @@ def change_user_role():
     username = input("Entrer le nom d'utilisateur à modifier : ")
     
     if username not in users:
-        print("❌ Cet utilisateur n'existe pas.")
+        print("Cet utilisateur n'existe pas.")
         return
         
     print(f"Rôle actuel de {username} : {users[username]['role']}")
@@ -101,18 +101,17 @@ def change_user_role():
         if new_role in ["user", "admin"]:
             break
         else:
-            print("❌ Rôle invalide. Veuillez choisir 'user' ou 'admin'.")
+            print("Rôle invalide. Veuillez choisir 'user' ou 'admin'.")
             
     users[username]["role"] = new_role
     save_users(users)
-    print(f"✅ Le rôle de '{username}' a été mis à jour avec succès vers '{new_role}'.")
+    print(f"Le rôle de '{username}' a été mis à jour avec succès vers '{new_role}'.")
 
 def print_welcome_banner():
     """Affiche le logo et le nom de l'application au lancement."""
-    # Efface la console (fonctionne sur Windows 'cls' et Mac/Linux 'clear')
+    # Efface la console 
     os.system('cls' if os.name == 'nt' else 'clear')
 
-    # Le 'r' devant les guillemets empêche les bugs avec les barres obliques \
     banner = r"""
  ========================================================
    __  __  _  _                     _           
@@ -158,7 +157,7 @@ def main():
                 elif choice == '4':
                     break
                 else:
-                    print("❌ Choix invalide.")
+                    print("Choix invalide.")
             else:
                 print("1. Se déconnecter")
                 print("2. Quitter")
@@ -170,7 +169,7 @@ def main():
                 elif choice == '2':
                     break
                 else:
-                    print("❌ Choix invalide.")
+                    print("Choix invalide.")
 
         else:
             # Menu pour utilisateur non connecté
@@ -184,7 +183,7 @@ def main():
             elif choice == '2':
                 break
             else:
-                print("❌ Choix invalide.")
+                print("Choix invalide.")
 
 if __name__ == "__main__":
     main()
