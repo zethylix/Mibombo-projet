@@ -1,12 +1,9 @@
-import os
 import bcrypt
 import pwinput
 import json
+import os
 
 DB_FILE = "users.json"
-
-
-
 
 
 def clear_console():
@@ -44,12 +41,12 @@ def clean_username(username):
 def print_welcome_banner():
     banner = r"""
  ========================================================
-   __  __  _  _                     _
-  |  \/  |(_)| |__   ___  _ __ ___ | |__   ___
-  | |\/| || || '_ \ / _ \| '_ ` _ \| '_ \ / _ \
+   __  __  _  _                     _           
+  |  \/  |(_)| |__   ___  _ __ ___ | |__   ___  
+  | |\/| || || '_ \ / _ \| '_ ` _ \| '_ \ / _ \ 
   | |  | || || |_) | (_) | | | | | | |_) | (_) |
-  |_|  |_||_||_.__/ \___/|_| |_| |_|_.__/ \___/
-
+  |_|  |_||_||_.__/ \___/|_| |_| |_|_.__/ \___/ 
+                                                
       🔒 Système de Gestion d'Authentification 🔒
  ========================================================
     """
@@ -94,20 +91,21 @@ def login():
     username = clean_username(input("Entrer votre nom d'utilisateur : "))
 
     user_data = users.get(username)
-    logged_user = None
-
     if not user_data:
         print("\n❌ Cet utilisateur n'existe pas.")
-    else:
-        password = pwinput.pwinput("Entrer votre mot de passe : ", mask="*")
-        if bcrypt.checkpw(password.encode("utf-8"), user_data["hashed_password"].encode("utf-8")):
-            print(f"\n✅ Connexion réussie. Bienvenue {username} !")
-            logged_user = {"username": username, "role": user_data["role"]}
-        else:
-            print("\n❌ Mot de passe incorrect.")
+        pause_and_clear()
+        return None
 
+    password = pwinput.pwinput("Entrer votre mot de passe : ", mask="*")
+
+    if bcrypt.checkpw(password.encode("utf-8"), user_data["hashed_password"].encode("utf-8")):
+        print(f"\n✅ Connexion réussie. Bienvenue {username} !")
+        pause_and_clear()
+        return {"username": username, "role": user_data["role"]}
+
+    print("\n❌ Mot de passe incorrect.")
     pause_and_clear()
-    return logged_user
+    return None
 
 
 def add_user_as_admin(current_user):
@@ -133,42 +131,44 @@ def change_user_role(current_user):
 
     users = load_users()
     username = clean_username(input("Entrer le nom d'utilisateur à modifier : "))
-    allowed = True
 
     if username not in users:
         print("\n❌ Cet utilisateur n'existe pas.")
-        allowed = False
+        pause_and_clear()
+        return
 
-    if allowed and username == current_user["username"]:
+    if username == current_user["username"]:
         print("\n❌ Vous ne pouvez pas modifier votre propre rôle.")
-        allowed = False
+        pause_and_clear()
+        return
 
-    if allowed:
-        target_role = users[username]["role"]
-        current_role = current_user["role"]
+    target_role = users[username]["role"]
+    current_role = current_user["role"]
 
-        if target_role == "owner":
-            print("\n❌ Le owner ne peut pas être modifié.")
-            allowed = False
+    if target_role == "owner":
+        print("\n❌ Le owner ne peut pas être modifié.")
+        pause_and_clear()
+        return
 
-        if current_role == "admin" and target_role == "admin":
-            print("\n❌ Seul le owner peut modifier un admin.")
-            allowed = False
+    if current_role == "admin" and target_role == "admin":
+        print("\n❌ Seul le owner peut modifier le rôle d'un admin.")
+        pause_and_clear()
+        return
 
-    if allowed:
-        allowed_new_roles = ["user", "admin"] if current_user["role"] == "owner" else ["user"]
-        print(f"Rôle actuel de {username} : {users[username]['role']}")
+    allowed_new_roles = ["user", "admin"] if current_role == "owner" else ["user"]
 
-        while True:
-            new_role = input(f"Nouveau rôle ({'/'.join(allowed_new_roles)}) : ").strip().lower()
-            if new_role in allowed_new_roles:
-                break
-            print("❌ Rôle invalide.")
+    print(f"Rôle actuel de {username} : {target_role}")
 
-        users[username]["role"] = new_role
-        save_users(users)
-        print(f"\n✅ Le rôle de '{username}' a été mis à jour vers '{new_role}'.")
+    while True:
+        new_role = input(f"Nouveau rôle ({'/'.join(allowed_new_roles)}) : ").strip().lower()
+        if new_role in allowed_new_roles:
+            break
+        print("❌ Rôle invalide.")
 
+    users[username]["role"] = new_role
+    save_users(users)
+
+    print(f"\n✅ Le rôle de '{username}' a été mis à jour vers '{new_role}'.")
     pause_and_clear()
 
 
@@ -179,38 +179,40 @@ def delete_user(current_user):
 
     users = load_users()
     username = clean_username(input("Entrer le nom d'utilisateur à supprimer : "))
-    allowed = True
 
     if username not in users:
         print("\n❌ Cet utilisateur n'existe pas.")
-        allowed = False
+        pause_and_clear()
+        return
 
-    if allowed and username == current_user["username"]:
+    if username == current_user["username"]:
         print("\n❌ Vous ne pouvez pas vous supprimer vous-même.")
-        allowed = False
+        pause_and_clear()
+        return
 
-    if allowed:
-        target_role = users[username]["role"]
-        current_role = current_user["role"]
+    target_role = users[username]["role"]
+    current_role = current_user["role"]
 
-        if target_role == "owner":
-            print("\n❌ Le owner ne peut pas être supprimé.")
-            allowed = False
+    if target_role == "owner":
+        print("\n❌ Le owner ne peut pas être supprimé.")
+        pause_and_clear()
+        return
 
-        if current_role == "admin" and target_role == "admin":
-            print("\n❌ Seul le owner peut supprimer un admin.")
-            allowed = False
+    if current_role == "admin" and target_role == "admin":
+        print("\n❌ Seul le owner peut supprimer un admin.")
+        pause_and_clear()
+        return
 
-    if allowed:
-        confirm = input(f"Confirmer la suppression de '{username}' ? (oui/non) : ").strip().lower()
+    confirm = input(f"Confirmer la suppression de '{username}' ? (oui/non) : ").strip().lower()
+    if confirm != "oui":
+        print("\nSuppression annulée.")
+        pause_and_clear()
+        return
 
-        if confirm == "oui":
-            del users[username]
-            save_users(users)
-            print(f"\n✅ Utilisateur '{username}' supprimé avec succès.")
-        else:
-            print("\nSuppression annulée.")
+    del users[username]
+    save_users(users)
 
+    print(f"\n✅ Utilisateur '{username}' supprimé avec succès.")
     pause_and_clear()
 
 
@@ -239,9 +241,10 @@ def show_main_menu():
 
 
 def main():
+    clear_console()
+    print_welcome_banner()
+
     if not load_users():
-        clear_console()
-        print_welcome_banner()
         print("Aucun utilisateur trouvé.")
         print("Veuillez créer le premier compte administrateur (OWNER).")
         pause_and_clear()
