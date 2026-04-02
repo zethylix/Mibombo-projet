@@ -270,7 +270,7 @@ def determiner_classe_ip(adresse_ip):
     if 1 <= premier_octet <= 126:
         return "A"
     if premier_octet == 127:
-        return "A (réservée : loopback)"
+        return "A (réservée : machine )"
     if 128 <= premier_octet <= 191:
         return "B"
     if 192 <= premier_octet <= 223:
@@ -278,7 +278,7 @@ def determiner_classe_ip(adresse_ip):
     if 224 <= premier_octet <= 239:
         return "D (réservée : multicast)"
     if 240 <= premier_octet <= 255:
-        return "E (réservée : expérimentale)"
+        return "E (réservée : jamais utilisé pour les adresses IP)"
     return "Inconnue"
 
 
@@ -314,23 +314,23 @@ def obtenir_infos_reservees(adresse_ip):
     if octets[0] == 0:
         informations.append("0.0.0.0/8 : réservée")
     if octets[0] == 100 and 64 <= octets[1] <= 127:
-        informations.append("100.64.0.0/10 : CGNAT")
+        informations.append("100.64.0.0/10 : reservé pour certains operateurs")
     if octets[0] == 127:
-        informations.append("127.0.0.0/8 : loopback")
+        informations.append("127.0.0.0/8 : machine locale")
     if octets[0] == 169 and octets[1] == 254:
-        informations.append("169.254.0.0/16 : link-local")
+        informations.append("169.254.0.0/16 : ip auto")
     if octets[0] == 192 and octets[1] == 0 and octets[2] == 2:
-        informations.append("192.0.2.0/24 : documentation")
+        informations.append("192.0.2.0/24 :doc")
     if octets[0] == 198 and octets[1] == 51 and octets[2] == 100:
-        informations.append("198.51.100.0/24 : documentation")
+        informations.append("198.51.100.0/24 :doc")
     if octets[0] == 203 and octets[1] == 0 and octets[2] == 113:
-        informations.append("203.0.113.0/24 : documentation")
+        informations.append("203.0.113.0/24 : doc")
     if 224 <= octets[0] <= 239:
         informations.append("Classe D : multicast")
     if 240 <= octets[0] <= 255:
-        informations.append("Classe E : réservée/expérimentale")
+        informations.append("Classe E : réservée jamais pour les adresses IP")
     if adresse_ip == "255.255.255.255":
-        informations.append("255.255.255.255 : broadcast limité")
+        informations.append("255.255.255.255 : broadcast")
 
     return informations
 
