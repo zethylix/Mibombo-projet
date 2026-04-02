@@ -1,12 +1,12 @@
+import os
+import json
 import bcrypt
 import pwinput
-import json
-import os
 
-DB_FILE = "users.json"
+FICHIER_UTILISATEURS = "utilisateurs.json"
 
 
-def clear_console():
+def effacer_console():
     os.system("cls" if os.name == "nt" else "clear")
 
 
@@ -14,31 +14,12 @@ def pause():
     input("\nAppuyez sur Entrée pour continuer...")
 
 
-def pause_and_clear():
+def pause_et_effacer():
     pause()
-    clear_console()
+    effacer_console()
 
 
-def load_users():
-    if not os.path.exists(DB_FILE):
-        return {}
-    try:
-        with open(DB_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, FileNotFoundError):
-        return {}
-
-
-def save_users(users):
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(users, f, indent=4, ensure_ascii=False)
-
-
-def clean_username(username):
-    return username.strip()
-
-
-def print_welcome_banner():
+def afficher_logo():
     banner = r"""
  ========================================================
    __  __  _  _                     _           
@@ -53,257 +34,458 @@ def print_welcome_banner():
     print(banner)
 
 
-def register_user(role="user"):
-    clear_console()
-    print_welcome_banner()
-    print(f"\n--- CRÉATION D'UN NOUVEL UTILISATEUR ({role.upper()}) ---")
+def charger_utilisateurs():
+    if not os.path.exists(FICHIER_UTILISATEURS):
+        return {}
+    try:
+        with open(FICHIER_UTILISATEURS, "r", encoding="utf-8") as fichier:
+            return json.load(fichier)
+    except (json.JSONDecodeError, FileNotFoundError):
+        return {}
 
-    users = load_users()
+
+def sauvegarder_utilisateurs(utilisateurs):
+    with open(FICHIER_UTILISATEURS, "w", encoding="utf-8") as fichier:
+        json.dump(utilisateurs, fichier, indent=4, ensure_ascii=False)
+
+
+def nettoyer_nom_utilisateur(nom_utilisateur):
+    return nom_utilisateur.strip()
+
+
+def creer_utilisateur(role="user"):
+    effacer_console()
+    afficher_logo()
+    print(f"--- CRÉATION D'UN UTILISATEUR ({role.upper()}) ---\n")
+
+    utilisateurs = charger_utilisateurs()
 
     while True:
-        username = clean_username(input("Entrer un nom d'utilisateur : "))
-        if not username:
-            print("❌ Le nom d'utilisateur ne peut pas être vide.")
-        elif username in users:
-            print("❌ Ce nom d'utilisateur est déjà pris.")
+        nom_utilisateur = nettoyer_nom_utilisateur(input("Nom d'utilisateur : "))
+        if not nom_utilisateur:
+            print("Le nom d'utilisateur ne peut pas être vide.")
+        elif nom_utilisateur in utilisateurs:
+            print("Ce nom d'utilisateur existe déjà.")
         else:
             break
 
-    password = pwinput.pwinput("Créer un mot de passe : ", mask="*")
-    hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12))
+    while True:
+        mot_de_passe = pwinput.pwinput("Mot de passe : ", mask="*")
+        confirmation = pwinput.pwinput("Confirmer le mot de passe : ", mask="*")
 
-    users[username] = {
-        "hashed_password": hashed_password.decode("utf-8"),
+        if not mot_de_passe:
+            print("Le mot de passe ne peut pas être vide.")
+        elif mot_de_passe != confirmation:
+            print("Les mots de passe ne correspondent pas.")
+        else:
+            break
+
+    mot_de_passe_hache = bcrypt.hashpw(mot_de_passe.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+    utilisateurs[nom_utilisateur] = {
+        "mot_de_passe": mot_de_passe_hache,
         "role": role
     }
 
-    save_users(users)
-    print(f"\n✅ Utilisateur '{username}' créé avec succès avec le rôle '{role}'.")
-    pause_and_clear()
+    sauvegarder_utilisateurs(utilisateurs)
+    print(f"\nUtilisateur '{nom_utilisateur}' créé avec succès.")
+    pause_et_effacer()
 
 
-def login():
-    clear_console()
-    print_welcome_banner()
-    print("\n--- CONNEXION ---")
+def se_connecter():
+    effacer_console()
+    afficher_logo()
+    print("--- CONNEXION ---\n")
 
-    users = load_users()
-    username = clean_username(input("Entrer votre nom d'utilisateur : "))
+    utilisateurs = charger_utilisateurs()
+    nom_utilisateur = nettoyer_nom_utilisateur(input("Nom d'utilisateur : "))
 
-    user_data = users.get(username)
-    if not user_data:
-        print("\n❌ Cet utilisateur n'existe pas.")
-        pause_and_clear()
+    if nom_utilisateur not in utilisateurs:
+        print("\nUtilisateur introuvable.")
+        pause_et_effacer()
         return None
 
-    password = pwinput.pwinput("Entrer votre mot de passe : ", mask="*")
+    mot_de_passe = pwinput.pwinput("Mot de passe : ", mask="*")
+    donnees_utilisateur = utilisateurs[nom_utilisateur]
 
-    if bcrypt.checkpw(password.encode("utf-8"), user_data["hashed_password"].encode("utf-8")):
-        print(f"\n✅ Connexion réussie. Bienvenue {username} !")
-        pause_and_clear()
-        return {"username": username, "role": user_data["role"]}
+    if bcrypt.checkpw(
+        mot_de_passe.encode("utf-8"),
+        donnees_utilisateur["mot_de_passe"].encode("utf-8")
+    ):
+        print(f"\nConnexion réussie. Bienvenue {nom_utilisateur}.")
+        pause_et_effacer()
+        return {
+            "nom_utilisateur": nom_utilisateur,
+            "role": donnees_utilisateur["role"]
+        }
 
-    print("\n❌ Mot de passe incorrect.")
-    pause_and_clear()
+    print("\nMot de passe incorrect.")
+    pause_et_effacer()
     return None
 
 
-def add_user_as_admin(current_user):
-    clear_console()
-    print_welcome_banner()
-    print("\n--- AJOUTER UN UTILISATEUR ---")
+def ajouter_utilisateur(utilisateur_connecte):
+    effacer_console()
+    afficher_logo()
+    print("--- AJOUTER UN UTILISATEUR ---\n")
 
-    allowed_roles = ["user", "admin"] if current_user["role"] == "owner" else ["user"]
+    if utilisateur_connecte["role"] not in ["admin", "owner"]:
+        print("Accès refusé.")
+        pause_et_effacer()
+        return
+
+    roles_autorises = ["user", "admin"] if utilisateur_connecte["role"] == "owner" else ["user"]
 
     while True:
-        role = input(f"Quel rôle pour le nouvel utilisateur ? ({'/'.join(allowed_roles)}) : ").strip().lower()
-        if role in allowed_roles:
+        role = input(f"Rôle du nouvel utilisateur ({'/'.join(roles_autorises)}) : ").strip().lower()
+        if role in roles_autorises:
             break
-        print("❌ Rôle invalide.")
+        print("Rôle invalide.")
 
-    register_user(role=role)
+    creer_utilisateur(role)
 
 
-def change_user_role(current_user):
-    clear_console()
-    print_welcome_banner()
-    print("\n--- CHANGER LE RÔLE D'UN UTILISATEUR ---")
+def modifier_role_utilisateur(utilisateur_connecte):
+    effacer_console()
+    afficher_logo()
+    print("--- MODIFIER LE RÔLE D'UN UTILISATEUR ---\n")
 
-    users = load_users()
-    username = clean_username(input("Entrer le nom d'utilisateur à modifier : "))
+    utilisateurs = charger_utilisateurs()
+    nom_utilisateur = nettoyer_nom_utilisateur(input("Nom de l'utilisateur à modifier : "))
 
-    if username not in users:
-        print("\n❌ Cet utilisateur n'existe pas.")
-        pause_and_clear()
+    if nom_utilisateur not in utilisateurs:
+        print("Utilisateur introuvable.")
+        pause_et_effacer()
         return
 
-    if username == current_user["username"]:
-        print("\n❌ Vous ne pouvez pas modifier votre propre rôle.")
-        pause_and_clear()
+    if nom_utilisateur == utilisateur_connecte["nom_utilisateur"]:
+        print("Vous ne pouvez pas modifier votre propre rôle.")
+        pause_et_effacer()
         return
 
-    target_role = users[username]["role"]
-    current_role = current_user["role"]
+    role_cible = utilisateurs[nom_utilisateur]["role"]
+    role_courant = utilisateur_connecte["role"]
 
-    if target_role == "owner":
-        print("\n❌ Le owner ne peut pas être modifié.")
-        pause_and_clear()
+    if role_cible == "owner":
+        print("Le owner ne peut pas être modifié.")
+        pause_et_effacer()
         return
 
-    if current_role == "admin" and target_role == "admin":
-        print("\n❌ Seul le owner peut modifier le rôle d'un admin.")
-        pause_and_clear()
+    if role_courant == "admin" and role_cible == "admin":
+        print("Seul le owner peut modifier un admin.")
+        pause_et_effacer()
         return
 
-    allowed_new_roles = ["user", "admin"] if current_role == "owner" else ["user"]
+    nouveaux_roles_autorises = ["user", "admin"] if role_courant == "owner" else ["user"]
 
-    print(f"Rôle actuel de {username} : {target_role}")
+    print(f"Rôle actuel : {role_cible}")
 
     while True:
-        new_role = input(f"Nouveau rôle ({'/'.join(allowed_new_roles)}) : ").strip().lower()
-        if new_role in allowed_new_roles:
+        nouveau_role = input(f"Nouveau rôle ({'/'.join(nouveaux_roles_autorises)}) : ").strip().lower()
+        if nouveau_role in nouveaux_roles_autorises:
             break
-        print("❌ Rôle invalide.")
+        print("Rôle invalide.")
 
-    users[username]["role"] = new_role
-    save_users(users)
+    utilisateurs[nom_utilisateur]["role"] = nouveau_role
+    sauvegarder_utilisateurs(utilisateurs)
 
-    print(f"\n✅ Le rôle de '{username}' a été mis à jour vers '{new_role}'.")
-    pause_and_clear()
+    print(f"\nLe rôle de '{nom_utilisateur}' a été modifié en '{nouveau_role}'.")
+    pause_et_effacer()
 
 
-def delete_user(current_user):
-    clear_console()
-    print_welcome_banner()
-    print("\n--- SUPPRIMER UN UTILISATEUR ---")
+def supprimer_utilisateur(utilisateur_connecte):
+    effacer_console()
+    afficher_logo()
+    print("--- SUPPRIMER UN UTILISATEUR ---\n")
 
-    users = load_users()
-    username = clean_username(input("Entrer le nom d'utilisateur à supprimer : "))
+    utilisateurs = charger_utilisateurs()
+    nom_utilisateur = nettoyer_nom_utilisateur(input("Nom de l'utilisateur à supprimer : "))
 
-    if username not in users:
-        print("\n❌ Cet utilisateur n'existe pas.")
-        pause_and_clear()
+    if nom_utilisateur not in utilisateurs:
+        print("Utilisateur introuvable.")
+        pause_et_effacer()
         return
 
-    if username == current_user["username"]:
-        print("\n❌ Vous ne pouvez pas vous supprimer vous-même.")
-        pause_and_clear()
+    if nom_utilisateur == utilisateur_connecte["nom_utilisateur"]:
+        print("Vous ne pouvez pas vous supprimer vous-même.")
+        pause_et_effacer()
         return
 
-    target_role = users[username]["role"]
-    current_role = current_user["role"]
+    role_cible = utilisateurs[nom_utilisateur]["role"]
+    role_courant = utilisateur_connecte["role"]
 
-    if target_role == "owner":
-        print("\n❌ Le owner ne peut pas être supprimé.")
-        pause_and_clear()
+    if role_cible == "owner":
+        print("Le owner ne peut pas être supprimé.")
+        pause_et_effacer()
         return
 
-    if current_role == "admin" and target_role == "admin":
-        print("\n❌ Seul le owner peut supprimer un admin.")
-        pause_and_clear()
+    if role_courant == "admin" and role_cible == "admin":
+        print("Seul le owner peut supprimer un admin.")
+        pause_et_effacer()
         return
 
-    confirm = input(f"Confirmer la suppression de '{username}' ? (oui/non) : ").strip().lower()
-    if confirm != "oui":
-        print("\nSuppression annulée.")
-        pause_and_clear()
+    confirmation = input(f"Confirmer la suppression de '{nom_utilisateur}' ? (oui/non) : ").strip().lower()
+
+    if confirmation != "oui":
+        print("Suppression annulée.")
+        pause_et_effacer()
         return
 
-    del users[username]
-    save_users(users)
+    del utilisateurs[nom_utilisateur]
+    sauvegarder_utilisateurs(utilisateurs)
 
-    print(f"\n✅ Utilisateur '{username}' supprimé avec succès.")
-    pause_and_clear()
+    print(f"\nUtilisateur '{nom_utilisateur}' supprimé.")
+    pause_et_effacer()
 
 
-def show_logged_menu(logged_in_user):
-    clear_console()
-    print_welcome_banner()
-    print(f"\n--- MENU ({logged_in_user['username']} - {logged_in_user['role']}) ---")
+def est_ipv4_valide(adresse_ip):
+    parties = adresse_ip.strip().split(".")
 
-    if logged_in_user["role"] in ["admin", "owner"]:
-        print("1. Ajouter un utilisateur")
-        print("2. Changer le rôle d'un utilisateur")
-        print("3. Supprimer un utilisateur")
-        print("4. Se déconnecter")
-        print("5. Quitter")
+    if len(parties) != 4:
+        return False
+
+    for partie in parties:
+        if not partie.isdigit():
+            return False
+
+        valeur = int(partie)
+
+        if valeur < 0 or valeur > 255:
+            return False
+
+        if str(valeur) != partie:
+            return False
+
+    return True
+
+
+def ip_vers_liste(adresse_ip):
+    return [int(partie) for partie in adresse_ip.split(".")]
+
+
+def determiner_classe_ip(adresse_ip):
+    octets = ip_vers_liste(adresse_ip)
+    premier_octet = octets[0]
+
+    if 1 <= premier_octet <= 126:
+        return "A"
+    if premier_octet == 127:
+        return "A (réservée : loopback)"
+    if 128 <= premier_octet <= 191:
+        return "B"
+    if 192 <= premier_octet <= 223:
+        return "C"
+    if 224 <= premier_octet <= 239:
+        return "D (réservée : multicast)"
+    if 240 <= premier_octet <= 255:
+        return "E (réservée : expérimentale)"
+    return "Inconnue"
+
+
+def obtenir_masque_classe(adresse_ip):
+    classe = determiner_classe_ip(adresse_ip)
+
+    if classe.startswith("A"):
+        return "255.0.0.0"
+    if classe.startswith("B"):
+        return "255.255.0.0"
+    if classe.startswith("C"):
+        return "255.255.255.0"
+    return "Pas de masque de classe standard"
+
+
+def est_ip_privee(adresse_ip):
+    octets = ip_vers_liste(adresse_ip)
+
+    if octets[0] == 10:
+        return True
+    if octets[0] == 172 and 16 <= octets[1] <= 31:
+        return True
+    if octets[0] == 192 and octets[1] == 168:
+        return True
+
+    return False
+
+
+def obtenir_infos_reservees(adresse_ip):
+    octets = ip_vers_liste(adresse_ip)
+    informations = []
+
+    if octets[0] == 0:
+        informations.append("0.0.0.0/8 : réservée")
+    if octets[0] == 100 and 64 <= octets[1] <= 127:
+        informations.append("100.64.0.0/10 : CGNAT")
+    if octets[0] == 127:
+        informations.append("127.0.0.0/8 : loopback")
+    if octets[0] == 169 and octets[1] == 254:
+        informations.append("169.254.0.0/16 : link-local")
+    if octets[0] == 192 and octets[1] == 0 and octets[2] == 2:
+        informations.append("192.0.2.0/24 : documentation")
+    if octets[0] == 198 and octets[1] == 51 and octets[2] == 100:
+        informations.append("198.51.100.0/24 : documentation")
+    if octets[0] == 203 and octets[1] == 0 and octets[2] == 113:
+        informations.append("203.0.113.0/24 : documentation")
+    if 224 <= octets[0] <= 239:
+        informations.append("Classe D : multicast")
+    if 240 <= octets[0] <= 255:
+        informations.append("Classe E : réservée/expérimentale")
+    if adresse_ip == "255.255.255.255":
+        informations.append("255.255.255.255 : broadcast limité")
+
+    return informations
+
+
+def masque_depuis_cidr(cidr):
+    bits = "1" * cidr + "0" * (32 - cidr)
+    groupes_binaires = [bits[i:i + 8] for i in range(0, 32, 8)]
+    groupes_decimaux = [str(int(groupe, 2)) for groupe in groupes_binaires]
+    return ".".join(groupes_binaires), ".".join(groupes_decimaux)
+
+
+def afficher_tableau_masques():
+    effacer_console()
+    afficher_logo()
+    print("--- TABLEAU DES MASQUES DE /8 À /30 ---\n")
+    print(f"{'CIDR':<6} {'Binaire':<39} {'Décimal pointé':<18}")
+    print("-" * 70)
+
+    for cidr in range(8, 31):
+        masque_binaire, masque_decimal = masque_depuis_cidr(cidr)
+        print(f"/{cidr:<5} {masque_binaire:<39} {masque_decimal:<18}")
+
+    pause_et_effacer()
+
+
+def analyser_adresse_ip():
+    effacer_console()
+    afficher_logo()
+    print("--- ANALYSE D'UNE ADRESSE IPv4 ---\n")
+
+    adresse_ip = input("Entrez une adresse IPv4 : ").strip()
+
+    if not est_ipv4_valide(adresse_ip):
+        print("\nLe format de l'adresse IP est invalide.")
+        pause_et_effacer()
+        return
+
+    classe = determiner_classe_ip(adresse_ip)
+    masque_classe = obtenir_masque_classe(adresse_ip)
+    privee = "Oui" if est_ip_privee(adresse_ip) else "Non"
+    infos_reservees = obtenir_infos_reservees(adresse_ip)
+
+    print("\nRésultat")
+    print("--------")
+    print(f"Adresse IP         : {adresse_ip}")
+    print(f"Format valide      : Oui")
+    print(f"Classe             : {classe}")
+    print(f"Masque de classe   : {masque_classe}")
+    print(f"Adresse privée     : {privee}")
+
+    if infos_reservees:
+        print("Adresse réservée   : Oui")
+        for info in infos_reservees:
+            print(f" - {info}")
     else:
-        print("1. Se déconnecter")
-        print("2. Quitter")
+        print("Adresse réservée   : Non")
+
+    pause_et_effacer()
 
 
-def show_main_menu():
-    clear_console()
-    print_welcome_banner()
-    print("\n--- MENU PRINCIPAL ---")
+def afficher_menu_principal():
+    effacer_console()
+    afficher_logo()
+    print("--- MENU PRINCIPAL ---\n")
     print("1. Se connecter")
     print("2. Quitter")
 
 
-def main():
-    clear_console()
-    print_welcome_banner()
+def afficher_menu_utilisateur(utilisateur_connecte):
+    effacer_console()
+    afficher_logo()
+    print(f"--- MENU ({utilisateur_connecte['nom_utilisateur']} - {utilisateur_connecte['role']}) ---\n")
+    print("1. Afficher le tableau des masques")
+    print("2. Analyser une adresse IPv4")
 
-    if not load_users():
+    if utilisateur_connecte["role"] in ["admin", "owner"]:
+        print("3. Ajouter un utilisateur")
+        print("4. Modifier le rôle d'un utilisateur")
+        print("5. Supprimer un utilisateur")
+        print("6. Se déconnecter")
+        print("7. Quitter")
+    else:
+        print("3. Se déconnecter")
+        print("4. Quitter")
+
+
+def programme_principal():
+    if not charger_utilisateurs():
+        effacer_console()
+        afficher_logo()
         print("Aucun utilisateur trouvé.")
-        print("Veuillez créer le premier compte administrateur (OWNER).")
-        pause_and_clear()
-        register_user(role="owner")
+        print("Création du premier compte administrateur (owner).")
+        pause_et_effacer()
+        creer_utilisateur(role="owner")
 
-    logged_in_user = None
+    utilisateur_connecte = None
 
     while True:
-        if logged_in_user:
-            show_logged_menu(logged_in_user)
+        if utilisateur_connecte is None:
+            afficher_menu_principal()
+            choix = input("\nVotre choix : ").strip()
 
-            if logged_in_user["role"] in ["admin", "owner"]:
-                choice = input("\nVotre choix : ").strip()
-
-                if choice == "1":
-                    add_user_as_admin(logged_in_user)
-                elif choice == "2":
-                    change_user_role(logged_in_user)
-                elif choice == "3":
-                    delete_user(logged_in_user)
-                elif choice == "4":
-                    print("\n✅ Déconnexion réussie.")
-                    logged_in_user = None
-                    pause_and_clear()
-                elif choice == "5":
-                    clear_console()
-                    print("Au revoir.")
-                    break
-                else:
-                    print("\n❌ Choix invalide.")
-                    pause_and_clear()
-            else:
-                choice = input("\nVotre choix : ").strip()
-
-                if choice == "1":
-                    print("\n✅ Déconnexion réussie.")
-                    logged_in_user = None
-                    pause_and_clear()
-                elif choice == "2":
-                    clear_console()
-                    print("Au revoir.")
-                    break
-                else:
-                    print("\n❌ Choix invalide.")
-                    pause_and_clear()
-        else:
-            show_main_menu()
-            choice = input("\nVotre choix : ").strip()
-
-            if choice == "1":
-                logged_in_user = login()
-            elif choice == "2":
-                clear_console()
+            if choix == "1":
+                utilisateur_connecte = se_connecter()
+            elif choix == "2":
+                effacer_console()
                 print("Au revoir.")
                 break
             else:
-                print("\n❌ Choix invalide.")
-                pause_and_clear()
+                print("Choix invalide.")
+                pause_et_effacer()
+        else:
+            afficher_menu_utilisateur(utilisateur_connecte)
+            choix = input("\nVotre choix : ").strip()
+
+            if utilisateur_connecte["role"] in ["admin", "owner"]:
+                if choix == "1":
+                    afficher_tableau_masques()
+                elif choix == "2":
+                    analyser_adresse_ip()
+                elif choix == "3":
+                    ajouter_utilisateur(utilisateur_connecte)
+                elif choix == "4":
+                    modifier_role_utilisateur(utilisateur_connecte)
+                elif choix == "5":
+                    supprimer_utilisateur(utilisateur_connecte)
+                elif choix == "6":
+                    print("\nDéconnexion réussie.")
+                    utilisateur_connecte = None
+                    pause_et_effacer()
+                elif choix == "7":
+                    effacer_console()
+                    print("Au revoir.")
+                    break
+                else:
+                    print("Choix invalide.")
+                    pause_et_effacer()
+            else:
+                if choix == "1":
+                    afficher_tableau_masques()
+                elif choix == "2":
+                    analyser_adresse_ip()
+                elif choix == "3":
+                    print("\nDéconnexion réussie.")
+                    utilisateur_connecte = None
+                    pause_et_effacer()
+                elif choix == "4":
+                    effacer_console()
+                    print("Au revoir.")
+                    break
+                else:
+                    print("Choix invalide.")
+                    pause_et_effacer()
 
 
 if __name__ == "__main__":
-    main()
+    programme_principal()
+    
