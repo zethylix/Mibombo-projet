@@ -1,6 +1,17 @@
 {
     "Mateo": {
-        "mot_de_passe": "$2b$12$d.ghyEYL7YxZc2uNHGBVr.CDiT5sfwkc/CK6Ak9il6Xbaidmv2WEG",
-        "role": "owner"
+        "mot_de_passe": "$2b$12$euYk.K96MolyPDohmo9AgOrftyswQZdf75n7OEOxEJxFVeVND3qH.",
+        "role": "owner",
+        "actif": true
+    },
+    "Noah": {
+        "mot_de_passe": "$2b$12$griKT/6DV08bvmB0ho/RbOc44U6vfolVOlMHoSyLxMWZVmq6q6tQ.",
+        "role": "user",
+        "actif": true
+    },
+    "Chenoa": {
+        "mot_de_passe": "$2b$12$bFbXqAXUdU6n5cdQADMuAeEHIuxPsXAfvY2cLTqBF8p1YTVV9VMN2",
+        "role": "admin",
+        "actif": true
     }
 }

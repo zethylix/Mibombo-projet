@@ -22,13 +22,13 @@ def pause_et_effacer():
 def afficher_logo():
     banner = r"""
  ========================================================
-   __  __  _  _                     _           
-  |  \/  |(_)| |__   ___  _ __ ___ | |__   ___  
-  | |\/| || || '_ \ / _ \| '_ ` _ \| '_ \ / _ \ 
+   __  __  _  _                     _
+  |  \/  |(_)| |__   ___  _ __ ___ | |__   ___
+  | |\/| || || '_ \ / _ \| '_ ` _ \| '_ \ / _ \
   | |  | || || |_) | (_) | | | | | | |_) | (_) |
-  |_|  |_||_||_.__/ \___/|_| |_| |_|_.__/ \___/ 
-                                                
-      🔒 Système de Gestion d'Authentification 🔒
+  |_|  |_||_||_.__/ \___/|_| |_| |_|_.__/ \___/
+
+      🔒 Application de Gestion d'adresses IP 🔒
  ========================================================
     """
     print(banner)
@@ -37,9 +37,17 @@ def afficher_logo():
 def charger_utilisateurs():
     if not os.path.exists(FICHIER_UTILISATEURS):
         return {}
+
     try:
         with open(FICHIER_UTILISATEURS, "r", encoding="utf-8") as fichier:
-            return json.load(fichier)
+            utilisateurs = json.load(fichier)
+
+        for _, donnees in utilisateurs.items():
+            if "actif" not in donnees:
+                donnees["actif"] = True
+
+        return utilisateurs
+
     except (json.JSONDecodeError, FileNotFoundError):
         return {}
 
@@ -80,11 +88,15 @@ def creer_utilisateur(role="user"):
         else:
             break
 
-    mot_de_passe_hache = bcrypt.hashpw(mot_de_passe.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    mot_de_passe_hache = bcrypt.hashpw(
+        mot_de_passe.encode("utf-8"),
+        bcrypt.gensalt()
+    ).decode("utf-8")
 
     utilisateurs[nom_utilisateur] = {
         "mot_de_passe": mot_de_passe_hache,
-        "role": role
+        "role": role,
+        "actif": True
     }
 
     sauvegarder_utilisateurs(utilisateurs)
@@ -107,6 +119,11 @@ def se_connecter():
 
     mot_de_passe = pwinput.pwinput("Mot de passe : ", mask="*")
     donnees_utilisateur = utilisateurs[nom_utilisateur]
+
+    if not donnees_utilisateur.get("actif", True):
+        print("\nCe compte est inactif. Connexion impossible.")
+        pause_et_effacer()
+        return None
 
     if bcrypt.checkpw(
         mot_de_passe.encode("utf-8"),
@@ -145,6 +162,39 @@ def ajouter_utilisateur(utilisateur_connecte):
     creer_utilisateur(role)
 
 
+def afficher_utilisateurs(utilisateur_connecte):
+    effacer_console()
+    afficher_logo()
+    print("--- LISTE DES UTILISATEURS ---\n")
+
+    if utilisateur_connecte["role"] not in ["admin", "owner"]:
+        print("Accès refusé.")
+        pause_et_effacer()
+        return
+
+    utilisateurs = charger_utilisateurs()
+
+    if not utilisateurs:
+        print("Aucun utilisateur trouvé.")
+        pause_et_effacer()
+        return
+
+    print(f"{'Nom':<20} {'Rôle':<10} {'État':<10}")
+    print("-" * 42)
+
+    def cle_tri(item):
+        nom, donnees = item
+        priorite_role = {"owner": 0, "admin": 1, "user": 2}
+        return (priorite_role.get(donnees.get("role", "user"), 99), nom.lower())
+
+    for nom_utilisateur, donnees in sorted(utilisateurs.items(), key=cle_tri):
+        role = donnees.get("role", "user")
+        etat = "actif" if donnees.get("actif", True) else "inactif"
+        print(f"{nom_utilisateur:<20} {role:<10} {etat:<10}")
+
+    pause_et_effacer()
+
+
 def modifier_role_utilisateur(utilisateur_connecte):
     effacer_console()
     afficher_logo()
@@ -160,6 +210,11 @@ def modifier_role_utilisateur(utilisateur_connecte):
 
     if nom_utilisateur == utilisateur_connecte["nom_utilisateur"]:
         print("Vous ne pouvez pas modifier votre propre rôle.")
+        pause_et_effacer()
+        return
+
+    if not utilisateurs[nom_utilisateur].get("actif", True):
+        print("Impossible de modifier le rôle d'un utilisateur inactif.")
         pause_et_effacer()
         return
 
@@ -179,6 +234,7 @@ def modifier_role_utilisateur(utilisateur_connecte):
     nouveaux_roles_autorises = ["user", "admin"] if role_courant == "owner" else ["user"]
 
     print(f"Rôle actuel : {role_cible}")
+    print("État actuel : actif")
 
     while True:
         nouveau_role = input(f"Nouveau rôle ({'/'.join(nouveaux_roles_autorises)}) : ").strip().lower()
@@ -193,13 +249,13 @@ def modifier_role_utilisateur(utilisateur_connecte):
     pause_et_effacer()
 
 
-def supprimer_utilisateur(utilisateur_connecte):
+def desactiver_utilisateur(utilisateur_connecte):
     effacer_console()
     afficher_logo()
-    print("--- SUPPRIMER UN UTILISATEUR ---\n")
+    print("--- DÉSACTIVER UN UTILISATEUR ---\n")
 
     utilisateurs = charger_utilisateurs()
-    nom_utilisateur = nettoyer_nom_utilisateur(input("Nom de l'utilisateur à supprimer : "))
+    nom_utilisateur = nettoyer_nom_utilisateur(input("Nom de l'utilisateur à désactiver : "))
 
     if nom_utilisateur not in utilisateurs:
         print("Utilisateur introuvable.")
@@ -207,7 +263,7 @@ def supprimer_utilisateur(utilisateur_connecte):
         return
 
     if nom_utilisateur == utilisateur_connecte["nom_utilisateur"]:
-        print("Vous ne pouvez pas vous supprimer vous-même.")
+        print("Vous ne pouvez pas vous désactiver vous-même.")
         pause_et_effacer()
         return
 
@@ -215,26 +271,81 @@ def supprimer_utilisateur(utilisateur_connecte):
     role_courant = utilisateur_connecte["role"]
 
     if role_cible == "owner":
-        print("Le owner ne peut pas être supprimé.")
+        print("Le owner ne peut pas être désactivé.")
         pause_et_effacer()
         return
 
     if role_courant == "admin" and role_cible == "admin":
-        print("Seul le owner peut supprimer un admin.")
+        print("Seul le owner peut désactiver un admin.")
         pause_et_effacer()
         return
 
-    confirmation = input(f"Confirmer la suppression de '{nom_utilisateur}' ? (oui/non) : ").strip().lower()
+    if not utilisateurs[nom_utilisateur].get("actif", True):
+        print("Cet utilisateur est déjà inactif.")
+        pause_et_effacer()
+        return
+
+    confirmation = input(f"Confirmer la désactivation de '{nom_utilisateur}' ? (oui/non) : ").strip().lower()
 
     if confirmation != "oui":
-        print("Suppression annulée.")
+        print("Opération annulée.")
         pause_et_effacer()
         return
 
-    del utilisateurs[nom_utilisateur]
+    utilisateurs[nom_utilisateur]["actif"] = False
     sauvegarder_utilisateurs(utilisateurs)
 
-    print(f"\nUtilisateur '{nom_utilisateur}' supprimé.")
+    print(f"\nUtilisateur '{nom_utilisateur}' désactivé.")
+    pause_et_effacer()
+
+
+def reactiver_utilisateur(utilisateur_connecte):
+    effacer_console()
+    afficher_logo()
+    print("--- RÉACTIVER UN UTILISATEUR ---\n")
+
+    if utilisateur_connecte["role"] not in ["admin", "owner"]:
+        print("Accès refusé.")
+        pause_et_effacer()
+        return
+
+    utilisateurs = charger_utilisateurs()
+    nom_utilisateur = nettoyer_nom_utilisateur(input("Nom de l'utilisateur à réactiver : "))
+
+    if nom_utilisateur not in utilisateurs:
+        print("Utilisateur introuvable.")
+        pause_et_effacer()
+        return
+
+    role_cible = utilisateurs[nom_utilisateur]["role"]
+    role_courant = utilisateur_connecte["role"]
+
+    if utilisateurs[nom_utilisateur].get("actif", True):
+        print("Cet utilisateur est déjà actif.")
+        pause_et_effacer()
+        return
+
+    if role_cible == "owner":
+        print("Le owner ne nécessite pas de réactivation.")
+        pause_et_effacer()
+        return
+
+    if role_courant == "admin" and role_cible == "admin":
+        print("Seul le owner peut réactiver un admin.")
+        pause_et_effacer()
+        return
+
+    confirmation = input(f"Confirmer la réactivation de '{nom_utilisateur}' ? (oui/non) : ").strip().lower()
+
+    if confirmation != "oui":
+        print("Opération annulée.")
+        pause_et_effacer()
+        return
+
+    utilisateurs[nom_utilisateur]["actif"] = True
+    sauvegarder_utilisateurs(utilisateurs)
+
+    print(f"\nUtilisateur '{nom_utilisateur}' réactivé.")
     pause_et_effacer()
 
 
@@ -270,7 +381,7 @@ def determiner_classe_ip(adresse_ip):
     if 1 <= premier_octet <= 126:
         return "A"
     if premier_octet == 127:
-        return "A (réservée : machine )"
+        return "A (réservée : machine locale)"
     if 128 <= premier_octet <= 191:
         return "B"
     if 192 <= premier_octet <= 223:
@@ -278,7 +389,7 @@ def determiner_classe_ip(adresse_ip):
     if 224 <= premier_octet <= 239:
         return "D (réservée : multicast)"
     if 240 <= premier_octet <= 255:
-        return "E (réservée : jamais utilisé pour les adresses IP)"
+        return "E (réservée : jamais utilisée pour les adresses IP)"
     return "Inconnue"
 
 
@@ -314,21 +425,21 @@ def obtenir_infos_reservees(adresse_ip):
     if octets[0] == 0:
         informations.append("0.0.0.0/8 : réservée")
     if octets[0] == 100 and 64 <= octets[1] <= 127:
-        informations.append("100.64.0.0/10 : reservé pour certains operateurs")
+        informations.append("100.64.0.0/10 : réservé pour certains opérateurs")
     if octets[0] == 127:
         informations.append("127.0.0.0/8 : machine locale")
     if octets[0] == 169 and octets[1] == 254:
-        informations.append("169.254.0.0/16 : ip auto")
+        informations.append("169.254.0.0/16 : IP automatique")
     if octets[0] == 192 and octets[1] == 0 and octets[2] == 2:
-        informations.append("192.0.2.0/24 :doc")
+        informations.append("192.0.2.0/24 : documentation")
     if octets[0] == 198 and octets[1] == 51 and octets[2] == 100:
-        informations.append("198.51.100.0/24 :doc")
+        informations.append("198.51.100.0/24 : documentation")
     if octets[0] == 203 and octets[1] == 0 and octets[2] == 113:
-        informations.append("203.0.113.0/24 : doc")
+        informations.append("203.0.113.0/24 : documentation")
     if 224 <= octets[0] <= 239:
         informations.append("Classe D : multicast")
     if 240 <= octets[0] <= 255:
-        informations.append("Classe E : réservée jamais pour les adresses IP")
+        informations.append("Classe E : réservée, jamais utilisée pour les adresses IP")
     if adresse_ip == "255.255.255.255":
         informations.append("255.255.255.255 : broadcast")
 
@@ -407,11 +518,13 @@ def afficher_menu_utilisateur(utilisateur_connecte):
     print("2. Analyser une adresse IPv4")
 
     if utilisateur_connecte["role"] in ["admin", "owner"]:
-        print("3. Ajouter un utilisateur")
-        print("4. Modifier le rôle d'un utilisateur")
-        print("5. Supprimer un utilisateur")
-        print("6. Se déconnecter")
-        print("7. Quitter")
+        print("3. Afficher les utilisateurs")
+        print("4. Ajouter un utilisateur")
+        print("5. Modifier le rôle d'un utilisateur")
+        print("6. Désactiver un utilisateur")
+        print("7. Réactiver un utilisateur")
+        print("8. Se déconnecter")
+        print("9. Quitter")
     else:
         print("3. Se déconnecter")
         print("4. Quitter")
@@ -452,16 +565,20 @@ def programme_principal():
                 elif choix == "2":
                     analyser_adresse_ip()
                 elif choix == "3":
-                    ajouter_utilisateur(utilisateur_connecte)
+                    afficher_utilisateurs(utilisateur_connecte)
                 elif choix == "4":
-                    modifier_role_utilisateur(utilisateur_connecte)
+                    ajouter_utilisateur(utilisateur_connecte)
                 elif choix == "5":
-                    supprimer_utilisateur(utilisateur_connecte)
+                    modifier_role_utilisateur(utilisateur_connecte)
                 elif choix == "6":
+                    desactiver_utilisateur(utilisateur_connecte)
+                elif choix == "7":
+                    reactiver_utilisateur(utilisateur_connecte)
+                elif choix == "8":
                     print("\nDéconnexion réussie.")
                     utilisateur_connecte = None
                     pause_et_effacer()
-                elif choix == "7":
+                elif choix == "9":
                     effacer_console()
                     print("Au revoir.")
                     break
@@ -488,4 +605,3 @@ def programme_principal():
 
 if __name__ == "__main__":
     programme_principal()
-    
